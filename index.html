@@ -3,162 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deteksi Plat Nomor</title>
+    <title>Deteksi Plat Nomor Kendaraan</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <style>
+        /* Styling halaman */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: Arial, sans-serif;
         }
-
         body {
             padding: 20px;
-            background-color: #f0f2f5;
+            background-color: #f9f9f9;
         }
-
         .container {
             max-width: 800px;
-            margin: 0 auto;
+            margin: auto;
         }
-
         h1 {
             text-align: center;
-            color: #1a73e8;
+            color: #4CAF50;
             margin-bottom: 20px;
         }
-
-        .camera-container {
-            position: relative;
+        video {
             width: 100%;
-            max-width: 640px;
-            margin: 0 auto;
-            background: #000;
             border-radius: 8px;
-            overflow: hidden;
         }
-
-        #video {
-            width: 100%;
-            height: auto;
-        }
-
-        #canvas {
+        canvas {
             display: none;
         }
-
-        .button-container {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
         button {
-            padding: 10px 20px;
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
             border: none;
             border-radius: 4px;
-            background-color: #1a73e8;
-            color: white;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
-
-        button:hover {
-            background-color: #1557b0;
-        }
-
         button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
-
-        .search-container {
-            margin: 20px 0;
+        .results {
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-
-        input[type="search"] {
-            width: 100%;
+        .plate-item {
+            margin-bottom: 10px;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 10px;
         }
-
-        .results-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .plate-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
         .plate-item:last-child {
-            border-bottom: none;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 10px;
-            }
-            
-            button {
-                padding: 8px 16px;
-                font-size: 14px;
-            }
+            margin-bottom: 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Deteksi Plat Nomor Kendaraan</h1>
-        
-        <div class="camera-container">
-            <video id="video" playsinline autoplay></video>
-            <canvas id="canvas"></canvas>
-        </div>
-
-        <div class="button-container">
-            <button id="startCamera">Mulai Kamera</button>
-            <button id="capture" disabled>Ambil Gambar</button>
-        </div>
-
-        <div class="loading">Memproses gambar...</div>
-
-        <div class="search-container">
-            <input type="search" id="searchInput" placeholder="Cari plat nomor...">
-        </div>
-
-        <div class="results-container" id="results">
-            <!-- Hasil deteksi akan ditampilkan di sini -->
-        </div>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        <button id="startCamera">Mulai Kamera</button>
+        <button id="captureImage" disabled>Ambil Gambar</button>
+        <div class="results" id="results"></div>
     </div>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const startButton = document.getElementById('startCamera');
-        const captureButton = document.getElementById('capture');
-        const searchInput = document.getElementById('searchInput');
+        const captureButton = document.getElementById('captureImage');
         const resultsContainer = document.getElementById('results');
-        const loadingIndicator = document.querySelector('.loading');
-
-        let stream = null;
-        let plateData = JSON.parse(localStorage.getItem('plateData')) || [];
+        let stream;
 
         // Mulai kamera
         startButton.addEventListener('click', async () => {
@@ -171,72 +95,60 @@
                 video.srcObject = stream;
                 startButton.disabled = true;
                 captureButton.disabled = false;
-            } catch (err) {
-                alert('Error mengakses kamera: ' + err.message);
+            } catch (error) {
+                alert('Gagal mengakses kamera: ' + error.message);
             }
         });
 
         // Ambil gambar
-        captureButton.addEventListener('click', async () => {
+        captureButton.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
+            context.drawImage(video, 0, 0);
+
             const imageData = canvas.toDataURL('image/png');
-            loadingIndicator.style.display = 'block';
-
-            try {
-                const result = await Tesseract.recognize(
-                    imageData,
-                    'eng',
-                    { logger: m => console.log(m) }
-                );
-
-                const timestamp = new Date().toLocaleString();
-                const plateNumber = result.data.text.replace(/\s+/g, '');
-                
-                plateData.unshift({
-                    plateNumber,
-                    timestamp,
-                    confidence: result.data.confidence
-                });
-
-                localStorage.setItem('plateData', JSON.stringify(plateData));
-                updateResults();
-                loadingIndicator.style.display = 'none';
-            } catch (err) {
-                alert('Error dalam pemrosesan OCR: ' + err.message);
-                loadingIndicator.style.display = 'none';
-            }
+            processImage(canvas);
         });
 
-        // Pencarian
-        searchInput.addEventListener('input', () => {
-            updateResults();
-        });
-
-        // Update tampilan hasil
-        function updateResults() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const filteredData = plateData.filter(item =>
-                item.plateNumber.toLowerCase().includes(searchTerm)
-            );
-
-            resultsContainer.innerHTML = filteredData.map(item => `
-                <div class="plate-item">
-                    <div>
-                        <strong>Plat Nomor:</strong> ${item.plateNumber}<br>
-                        <small>Waktu: ${item.timestamp}</small>
-                    </div>
-                    <div>
-                        <small>Akurasi: ${item.confidence.toFixed(2)}%</small>
-                    </div>
-                </div>
-            `).join('');
+        // Validasi format plat nomor
+        function validatePlateNumber(text) {
+            const pattern = /^[A-Z]{1,2}\d{1,4}[A-Z]{1,3}$/i;
+            const cleanedText = text.replace(/[^A-Z0-9]/gi, '');
+            return pattern.test(cleanedText) ? cleanedText.toUpperCase() : null;
         }
 
-        // Tampilkan data awal
-        updateResults();
+        // Proses gambar dengan OCR
+        async function processImage(image) {
+            try {
+                const result = await Tesseract.recognize(image, 'eng', {
+                    logger: m => console.log(m),
+                    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+                });
+
+                let detectedText = result.data.text.replace(/\s+/g, '');
+                detectedText = validatePlateNumber(detectedText);
+
+                if (detectedText) {
+                    displayResult(detectedText, result.data.confidence);
+                } else {
+                    alert('Plat nomor tidak valid atau tidak terdeteksi.');
+                }
+            } catch (error) {
+                alert('Terjadi kesalahan saat memproses gambar: ' + error.message);
+            }
+        }
+
+        // Tampilkan hasil
+        function displayResult(plateNumber, confidence) {
+            const resultDiv = document.createElement('div');
+            resultDiv.classList.add('plate-item');
+            resultDiv.innerHTML = `
+                <strong>Plat Nomor:</strong> ${plateNumber}<br>
+                <small>Akurasi: ${confidence.toFixed(2)}%</small>
+            `;
+            resultsContainer.prepend(resultDiv);
+        }
     </script>
 </body>
 </html>
