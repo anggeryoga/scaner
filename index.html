@@ -3,150 +3,439 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deteksi Plat Nomor Kendaraan</title>
+    <title>Smart License Plate Detection System</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opencv.js/4.7.0/opencv.js"></script>
     <style>
-        /* Gaya CSS untuk tampilan halaman */
+        :root {
+            --primary-color: #8B5FBF;
+            --secondary-color: #D7A1F9;
+            --accent-color: #6E44FF;
+            --background-color: #F8F1FF;
+            --success-color: #4CAF50;
+            --error-color: #FF5252;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
         }
+
         body {
             padding: 20px;
-            background-color: #f4f4f9;
+            background-color: var(--background-color);
+            background-image: 
+                radial-gradient(circle at 10px 10px, var(--secondary-color) 2px, transparent 0),
+                radial-gradient(circle at 30px 30px, var(--secondary-color) 2px, transparent 0);
+            background-size: 40px 40px;
         }
+
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(139, 95, 191, 0.1);
+            border: 2px solid var(--primary-color);
         }
+
         h1 {
-            color: #4CAF50;
+            color: var(--primary-color);
             margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px var(--secondary-color);
         }
+
+        .video-container {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid var(--primary-color);
+        }
+
         video {
             width: 100%;
-            border-radius: 8px;
+            border-radius: 12px;
             background-color: black;
         }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
         canvas {
             display: none;
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
         button {
-            padding: 10px 20px;
-            margin: 10px 0;
-            background-color: #4CAF50;
+            padding: 12px 24px;
+            background: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 2px solid transparent;
         }
+
+        button:hover:not(:disabled) {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(110, 68, 255, 0.2);
+        }
+
         button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
+
         .results {
             margin-top: 20px;
-            padding: 10px;
+            padding: 20px;
+            border-radius: 15px;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 16px rgba(139, 95, 191, 0.1);
         }
+
         .plate-item {
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 10px;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .plate-item:hover {
+            transform: translateX(5px);
+            border-color: var(--primary-color);
+        }
+
+        .plate-info {
+            text-align: left;
+        }
+
+        .plate-number {
+            font-size: 1.2em;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .confidence {
+            background: var(--secondary-color);
+            padding: 4px 8px;
             border-radius: 4px;
-            background-color: #f9f9f9;
+            font-size: 0.8em;
+            color: var(--primary-color);
+        }
+
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: var(--success-color);
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-indicator.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Deteksi Plat Nomor Kendaraan</h1>
-        <video id="video" autoplay playsinline></video>
+        <h1>Smart License Plate Detector</h1>
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="overlay"></canvas>
+        </div>
         <canvas id="canvas"></canvas>
-        <button id="startCamera">Mulai Kamera</button>
-        <button id="captureImage" disabled>Ambil Gambar</button>
+        <div class="button-group">
+            <button id="startCamera">Start Camera</button>
+            <button id="toggleAutoScan">Enable Auto-Scan</button>
+            <button id="captureImage" disabled>Capture Manual</button>
+        </div>
+        <div class="status-indicator" id="statusIndicator">Processing...</div>
         <div class="results" id="results"></div>
     </div>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const overlay = document.getElementById('overlay');
         const startButton = document.getElementById('startCamera');
+        const autoScanButton = document.getElementById('toggleAutoScan');
         const captureButton = document.getElementById('captureImage');
         const resultsContainer = document.getElementById('results');
+        const statusIndicator = document.getElementById('statusIndicator');
+        
         let stream;
+        let isAutoScanEnabled = false;
+        let isProcessing = false;
+        let lastDetectedPlate = '';
+        let lastDetectionTime = 0;
+        
+        // Initialize OpenCV.js
+        async function initOpenCV() {
+            return new Promise(resolve => {
+                if (window.cv) {
+                    resolve();
+                } else {
+                    cv['onRuntimeInitialized'] = () => {
+                        resolve();
+                    };
+                }
+            });
+        }
 
-        // Fungsi untuk memulai kamera
+        // Enhanced plate number validation for Indonesia
+        function validatePlateNumber(text) {
+            // Remove all non-alphanumeric characters and spaces
+            const cleanedText = text.replace(/[^A-Z0-9]/gi, '');
+            
+            // Indonesian license plate patterns
+            const patterns = [
+                /^[A-Z]{1,2}\d{1,4}[A-Z]{1,3}$/i,  // Standard format (B1234ABC)
+                /^[A-Z]{1}\d{1,4}[A-Z]{1,3}$/i,     // Single letter format (B1234AC)
+                /^[A-Z]{2}\d{1,4}[A-Z]{1,2}$/i      // Double letter format (AB1234C)
+            ];
+
+            // Test against all patterns
+            for (let pattern of patterns) {
+                if (pattern.test(cleanedText)) {
+                    return cleanedText.toUpperCase();
+                }
+            }
+
+            return null;
+        }
+
+        // Show status indicator
+        function showStatus(message, isError = false) {
+            statusIndicator.textContent = message;
+            statusIndicator.style.background = isError ? 'var(--error-color)' : 'var(--success-color)';
+            statusIndicator.classList.add('show');
+            setTimeout(() => {
+                statusIndicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // Initialize camera
         startButton.addEventListener('click', async () => {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment'
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
                 video.srcObject = stream;
                 startButton.disabled = true;
                 captureButton.disabled = false;
+                autoScanButton.disabled = false;
+                
+                // Initialize canvas overlay
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
+                
+                showStatus('Camera started successfully');
             } catch (error) {
-                alert('Gagal mengakses kamera: ' + error.message);
+                showStatus('Failed to access camera: ' + error.message, true);
             }
         });
 
-        // Fungsi untuk menangkap gambar dari kamera
+        // Toggle auto-scan
+        autoScanButton.addEventListener('click', () => {
+            isAutoScanEnabled = !isAutoScanEnabled;
+            autoScanButton.textContent = isAutoScanEnabled ? 'Disable Auto-Scan' : 'Enable Auto-Scan';
+            autoScanButton.style.background = isAutoScanEnabled ? 'var(--error-color)' : 'var(--primary-color)';
+            
+            if (isAutoScanEnabled) {
+                startAutoScan();
+            }
+        });
+
+        // Manual capture
         captureButton.addEventListener('click', () => {
+            processFrame(true);
+        });
+
+        // Process video frame
+        async function processFrame(isManual = false) {
+            if (isProcessing) return;
+            isProcessing = true;
+
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0);
 
-            // Kirim gambar ke proses OCR
-            processImage(canvas);
-        });
+            try {
+                // Convert to grayscale for better plate detection
+                let src = cv.imread(canvas);
+                let gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                
+                // Apply adaptive threshold
+                let binary = new cv.Mat();
+                cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
+                
+                // Find contours
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+                cv.findContours(binary, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-        // Fungsi validasi format plat nomor
-        function validatePlateNumber(text) {
-            const pattern = /^[A-Z]{1,2}\d{1,4}[A-Z]{1,3}$/i;
-            const cleanedText = text.replace(/[^A-Z0-9]/gi, '');
-            return pattern.test(cleanedText) ? cleanedText.toUpperCase() : null;
+                // Draw potential plate regions
+                const overlayCtx = overlay.getContext('2d');
+                overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+                
+                for (let i = 0; i < contours.size(); ++i) {
+                    let cnt = contours.get(i);
+                    let rect = cv.boundingRect(cnt);
+                    let ratio = rect.width / rect.height;
+                    
+                    // Filter based on aspect ratio and size
+                    if (ratio > 2 && ratio < 5 && rect.width > 100 && rect.height > 20) {
+                        overlayCtx.strokeStyle = 'rgba(76, 175, 80, 0.8)';
+                        overlayCtx.lineWidth = 3;
+                        overlayCtx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                        
+                        // Extract and process the region
+                        let roi = src.roi(rect);
+                        cv.imshow(canvas, roi);
+                        await processRegion(canvas, isManual);
+                        
+                        roi.delete();
+                    }
+                }
+
+                // Cleanup
+                src.delete();
+                gray.delete();
+                binary.delete();
+                contours.delete();
+                hierarchy.delete();
+
+            } catch (error) {
+                console.error('Error processing frame:', error);
+                showStatus('Processing error', true);
+            }
+
+            isProcessing = false;
         }
 
-        // Fungsi memproses gambar dengan OCR
-        async function processImage(image) {
+        // Process region with OCR
+        async function processRegion(image, isManual) {
             try {
                 const result = await Tesseract.recognize(image, 'eng', {
                     logger: m => console.log(m),
                     tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
                 });
 
-                let detectedText = result.data.text.replace(/\s+/g, '');
-                detectedText = validatePlateNumber(detectedText);
+                let detectedText = validatePlateNumber(result.data.text);
 
                 if (detectedText) {
-                    displayResult(detectedText, result.data.confidence);
-                } else {
-                    alert('Plat nomor tidak valid atau tidak terdeteksi.');
+                    const currentTime = Date.now();
+                    // Prevent duplicate detections within 3 seconds
+                    if (isManual || (detectedText !== lastDetectedPlate || currentTime - lastDetectionTime > 3000)) {
+                        lastDetectedPlate = detectedText;
+                        lastDetectionTime = currentTime;
+                        displayResult(detectedText, result.data.confidence);
+                        showStatus('Plate detected: ' + detectedText);
+                    }
                 }
             } catch (error) {
-                alert('Terjadi kesalahan saat memproses gambar: ' + error.message);
+                console.error('OCR error:', error);
             }
         }
 
-        // Fungsi untuk menampilkan hasil
+        // Start auto-scan process
+        function startAutoScan() {
+            if (!isAutoScanEnabled) return;
+            
+            processFrame();
+            requestAnimationFrame(startAutoScan);
+        }
+
+        // Display results
         function displayResult(plateNumber, confidence) {
             const resultDiv = document.createElement('div');
             resultDiv.classList.add('plate-item');
+            
+            const timestamp = new Date().toLocaleString();
+            
             resultDiv.innerHTML = `
-                <strong>Plat Nomor:</strong> ${plateNumber}<br>
-                <small>Akurasi: ${confidence.toFixed(2)}%</small>
+                <div class="plate-info">
+                    <div class="plate-number">${plateNumber}</div>
+                    <div class="timestamp">${timestamp}</div>
+                </div>
+                <div class="confidence">
+                    ${confidence.toFixed(2)}%
+                </div>
             `;
+            
             resultsContainer.prepend(resultDiv);
+            
+            // Limit the number of displayed results
+            if (resultsContainer.children.length > 10) {
+                resultsContainer.removeChild(resultsContainer.lastChild);
+            }
         }
+
+        // Initialize OpenCV when the page loads
+        window.onload = async () => {
+            try {
+                await initOpenCV();
+                showStatus('System ready');
+            } catch (error) {
+                showStatus('Failed to initialize system', true);
+            }
+        };
     </script>
 </body>
 </html>
