@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BARCODE GENERATOR NEOBRUTAL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Chivo Mono', monospace;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            background-color: #ffde59;
+            border: 3px solid #000;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 8px 8px 0 #000;
+            position: relative;
+        }
+        
+        h1 {
+            color: #000;
+            text-align: center;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            font-size: 28px;
+            letter-spacing: 1px;
+            background-color: #ff5757;
+            padding: 15px;
+            border: 3px solid #000;
+            box-shadow: 5px 5px 0 #000;
+            border-radius: 12px;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #000;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 3px solid #000;
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            font-family: 'Chivo Mono', monospace;
+            background-color: #fff;
+            box-shadow: 4px 4px 0 #000;
+            transition: all 0.2s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            box-shadow: 6px 6px 0 #000;
+            transform: translateY(-2px);
+        }
+        
+        button {
+            background-color: #5271ff;
+            color: #fff;
+            border: 3px solid #000;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: block;
+            width: 100%;
+            margin-bottom: 15px;
+            font-family: 'Chivo Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 5px 5px 0 #000;
+        }
+        
+        button:hover {
+            background-color: #3d5aff;
+            transform: translateY(-3px);
+            box-shadow: 8px 8px 0 #000;
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 2px 2px 0 #000;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            box-shadow: 3px 3px 0 #000;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #download-button {
+            background-color: #10c956;
+        }
+        
+        #download-button:hover {
+            background-color: #00b344;
+        }
+        
+        .result {
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        #barcode-container {
+            background-color: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #000;
+            box-shadow: 5px 5px 0 #000;
+            border-radius: 12px;
+        }
+        
+        #barcode-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .error {
+            color: #ff0000;
+            margin-top: 15px;
+            font-weight: bold;
+            background-color: #ffe5e5;
+            padding: 10px;
+            border: 3px solid #ff0000;
+            border-radius: 10px;
+        }
+        
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .options-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+        
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #000;
+            font-size: 14px;
+            padding: 15px;
+            background-color: #b8c0ff;
+            border: 3px solid #000;
+            box-shadow: 5px 5px 0 #000;
+            font-weight: bold;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BARCODE GENERATOR</h1>
+        
+        <div class="input-group">
+            <label for="text-input">Teks yang akan dikonversi:</label>
+            <input type="text" id="text-input" placeholder="Masukkan teks di sini" value="12345678">
+        </div>
+        
+        <div class="options-container">
+            <div class="input-group">
+                <label for="barcode-format">Format Barcode:</label>
+                <select id="barcode-format">
+                    <option value="CODE128">CODE128 (Alfanumerik)</option>
+                    <option value="CODE39">CODE39 (Alfanumerik + simbol)</option>
+                    <option value="EAN13">EAN-13 (13 digit)</option>
+                    <option value="EAN8">EAN-8 (8 digit)</option>
+                    <option value="UPC">UPC (12 digit)</option>
+                    <option value="ITF14">ITF-14 (14 digit)</option>
+                    <option value="MSI">MSI</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="barcode-width">Lebar Garis:</label>
+                <input type="number" id="barcode-width" min="1" max="5" value="2">
+            </div>
+            
+            <div class="input-group">
+                <label for="barcode-height">Tinggi Barcode:</label>
+                <input type="number" id="barcode-height" min="20" max="200" value="100">
+            </div>
+            
+            <div class="input-group">
+                <label for="display-value">Tampilkan Nilai:</label>
+                <select id="display-value">
+                    <option value="true">Ya</option>
+                    <option value="false">Tidak</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button id="generate-button">GENERATE BARCODE</button>
+            <button id="download-button" disabled>DOWNLOAD PNG</button>
+        </div>
+        
+        <div class="result">
+            <div id="barcode-container">
+                <svg id="barcode"></svg>
+            </div>
+            <div id="error-message" class="error"></div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>NEOBRUTALIST BARCODE GENERATOR &copy; 2025</p>
+    </footer>
+    
+    <script>
+        // Fungsi untuk menghasilkan barcode
+        function generateBarcode() {
+            const text = document.getElementById('text-input').value.trim();
+            const format = document.getElementById('barcode-format').value;
+            const width = Number(document.getElementById('barcode-width').value);
+            const height = Number(document.getElementById('barcode-height').value);
+            const displayValue = document.getElementById('display-value').value === 'true';
+            const errorElement = document.getElementById('error-message');
+            
+            // Validasi input kosong
+            if (!text) {
+                errorElement.textContent = 'Mohon masukkan teks untuk dikonversi!';
+                document.getElementById('download-button').disabled = true;
+                return;
+            }
+            
+            errorElement.textContent = '';
+            
+            try {
+                JsBarcode('#barcode', text, {
+                    format: format,
+                    width: width,
+                    height: height,
+                    displayValue: displayValue,
+                    fontOptions: 'bold',
+                    fontSize: 16,
+                    margin: 10,
+                    background: '#ffffff'
+                });
+                
+                // Aktifkan tombol download
+                document.getElementById('download-button').disabled = false;
+            } catch (error) {
+                console.error(error);
+                errorElement.textContent = `Error: ${error.message || 'Format atau nilai tidak valid untuk jenis barcode yang dipilih'}`;
+                document.getElementById('download-button').disabled = true;
+            }
+        }
+        
+        // Fungsi untuk mengunduh barcode sebagai gambar PNG
+        function downloadBarcode() {
+            const svgElement = document.getElementById('barcode');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Buat objek gambar dari SVG
+            const img = new Image();
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                
+                // Konversi canvas ke URL data untuk diunduh
+                const pngFile = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                const text = document.getElementById('text-input').value.trim();
+                
+                downloadLink.download = `barcode-${text}.png`;
+                downloadLink.href = pngFile;
+                downloadLink.click();
+            };
+            
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+        
+        // Event listeners
+        document.getElementById('generate-button').addEventListener('click', generateBarcode);
+        document.getElementById('download-button').addEventListener('click', downloadBarcode);
+        
+        // Generate barcode awal saat halaman dimuat
+        window.onload = generateBarcode;
+    </script>
+</body>
+</html>
